@@ -4,40 +4,44 @@ publish_to: 'none'
 version: 1.0.0+1
 
 environment:
-  sdk: '>=3.0.0 <4.0.0'
+  sdk: ">=3.0.0 <4.0.0"
 
 dependencies:
   flutter:
     sdk: flutter
 
-  # Supabase
-  supabase_flutter: ^2.5.6
+  cupertino_icons: 1.0.6
 
-  # Notifikasi Lokal
-  flutter_local_notifications: ^17.2.2
+  provider: 6.1.2
 
-  # State management
-  provider: ^6.1.2
+  shared_preferences: 2.2.3
 
-  # Audio (sound effect) — v4.0.1 kompatibel Dart SDK 3.1.x
-  # JANGAN naikkan ke ^5 atau ^6 tanpa upgrade Dart SDK ke 3.3+
-  audioplayers: ^4.0.1
+  intl: 0.19.0
 
-  # SharedPreferences (dark mode, favorit, dll)
-  shared_preferences: ^2.2.3
+  flutter_local_notifications: 17.2.2
 
-  # Format tanggal Bahasa Indonesia
-  intl: ^0.19.0
+  audioplayers: 4.1.0
 
-  # Icons
-  cupertino_icons: ^1.0.6
+  # LOCK SUPABASE VERSIONS
+  supabase_flutter: 2.3.4
+  supabase: 2.3.0
+  postgrest: 2.1.1
+  realtime_client: 2.1.0
+
+dependency_overrides:
+  postgrest: 2.1.1
+  realtime_client: 2.1.0
+  supabase: 2.3.0
+  supabase_flutter: 2.3.4
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^3.0.0
+
+  flutter_lints: 3.0.0
 
 flutter:
   uses-material-design: true
+
   assets:
     - assets/sounds/

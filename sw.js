@@ -3,7 +3,7 @@
 // Fitur: Cache file statis → app bisa dibuka offline
 // ============================================================
 
-const CACHE_NAME   = 'spindecide-v1';
+const CACHE_NAME   = 'spindecide-v2';
 const OFFLINE_URL  = 'login.html';
 
 // File yang di-cache saat install
@@ -12,14 +12,22 @@ const ASSETS_TO_CACHE = [
   'register.html',
   'dashboard.html',
   'history.html',
+  'truth-dare.html',
+  'double-spin.html',
+  'multiplayer.html',
   'style.css',
+  'truth-dare.css',
+  'double-spin.css',
+  'multiplayer.css',
   'supabase.js',
   'auth.js',
   'spin.js',
   'history.js',
+  'truth-dare-data.js',
+  'truth-dare.js',
+  'double-spin.js',
+  'multiplayer.js',
   'manifest.json',
-  'icons/icon-192.png',
-  'icons/icon-512.png'
 ];
 
 // ── Install: cache semua asset ────────────────────────────────

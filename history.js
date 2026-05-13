@@ -106,13 +106,11 @@ function renderStats(data) {
     return;
   }
 
-  // Hasil paling sering muncul
   const freq = {};
   data.forEach(s => freq[s.result] = (freq[s.result] || 0) + 1);
   const topResult = Object.entries(freq).sort((a, b) => b[1] - a[1])[0];
   document.getElementById('statTopResult').textContent = topResult ? topResult[0] : '-';
 
-  // Rata-rata jumlah pilihan
   const avgOptions = data.reduce((sum, s) => sum + s.options.length, 0) / data.length;
   document.getElementById('statAvgOptions').textContent = avgOptions.toFixed(1);
 }
@@ -206,28 +204,62 @@ async function deleteAllHistory() {
 
   try {
     const user = await getCurrentUser();
-    if (!user) throw new Error('User tidak ditemukan');
+    if (!user) throw new Error('User tidak ditemukan. Silakan login ulang.');
 
-    const { error } = await supabaseClient
+    console.log('[DELETE ALL] Memulai penghapusan semua history untuk user:', user.id);
+    console.log('[DELETE ALL] Jumlah data sebelum hapus:', allHistory.length);
+
+    // ── Query DELETE ke Supabase dengan .select() untuk verifikasi baris terhapus
+    const { data: deletedRows, error } = await supabaseClient
       .from('spins')
       .delete()
+      .eq('user_id', user.id)
+      .select();  // ← wajib: mengembalikan baris yang benar-benar terhapus dari DB
+
+    // ── Log hasil dari database
+    console.log('[DELETE ALL] Response dari DB:', { deletedRows, error });
+
+    if (error) {
+      console.error('[DELETE ALL] DB Error:', error.code, error.message, error.details);
+      throw new Error(error.message);
+    }
+
+    const jumlahTerhapus = deletedRows ? deletedRows.length : 0;
+    console.log('[DELETE ALL] Baris yang benar-benar terhapus dari DB:', jumlahTerhapus);
+
+    // ── Verifikasi: jika 0 row terhapus padahal ada data → kemungkinan RLS memblokir
+    if (jumlahTerhapus === 0 && allHistory.length > 0) {
+      console.warn('[DELETE ALL] PERINGATAN: Query berhasil tapi 0 row terhapus!');
+      console.warn('[DELETE ALL] Kemungkinan penyebab: RLS policy DELETE belum dibuat di Supabase.');
+      console.warn('[DELETE ALL] Buka Supabase Dashboard → Table Editor → spins → Policies → Tambah DELETE policy.');
+      throw new Error(
+        'Penghapusan gagal: tidak ada data yang terhapus dari database. ' +
+        'Kemungkinan RLS policy DELETE belum diaktifkan. Lihat console untuk detail.'
+      );
+    }
+
+    // ── Re-fetch dari DB untuk konfirmasi data benar-benar sudah hilang
+    console.log('[DELETE ALL] Re-fetch dari DB untuk konfirmasi…');
+    const { data: checkData, error: checkError } = await supabaseClient
+      .from('spins')
+      .select('id')
       .eq('user_id', user.id);
 
-    if (error) throw error;
+    if (!checkError) {
+      console.log('[DELETE ALL] Sisa data di DB setelah delete:', checkData ? checkData.length : 'error');
+    }
 
-    // Update state lokal
+    // ── Update local state & UI hanya setelah DB konfirmasi berhasil
     allHistory = [];
-
-    // Tutup modal
     closeDeleteAllModal();
-
-    // Render ulang UI
     renderHistory([]);
     renderStats([]);
 
-    showToast('Semua riwayat berhasil dihapus.', 'success');
+    showToast(`${jumlahTerhapus} riwayat berhasil dihapus permanen.`, 'success');
+    console.log('[DELETE ALL] Selesai. UI diperbarui.');
 
   } catch (err) {
+    console.error('[DELETE ALL] Gagal:', err.message);
     showToast('Gagal menghapus: ' + err.message, 'error');
   } finally {
     btn.disabled = false;
@@ -261,24 +293,50 @@ async function deleteHistoryItem() {
 
   try {
     const user = await getCurrentUser();
-    if (!user) throw new Error('User tidak ditemukan');
+    if (!user) throw new Error('User tidak ditemukan. Silakan login ulang.');
 
-    // Hapus permanen dari DB, validasi ownership (user_id harus cocok)
-    const { error } = await supabaseClient
+    console.log('[DELETE ITEM] Memulai penghapusan spin ID:', spinId);
+    console.log('[DELETE ITEM] User ID:', user.id);
+
+    // ── Query DELETE ke Supabase dengan validasi ownership + .select() untuk verifikasi
+    const { data: deletedRows, error } = await supabaseClient
       .from('spins')
       .delete()
-      .eq('id', spinId)
-      .eq('user_id', user.id);
+      .eq('id', spinId)          // ← filter by primary key
+      .eq('user_id', user.id)    // ← validasi ownership: hanya bisa hapus milik sendiri
+      .select();                 // ← wajib: mengembalikan baris yang benar-benar terhapus
 
-    if (error) throw error;
+    // ── Log hasil dari database
+    console.log('[DELETE ITEM] Response dari DB:', { deletedRows, error });
 
-    // Hapus dari state lokal
+    if (error) {
+      console.error('[DELETE ITEM] DB Error:', error.code, error.message, error.details);
+      throw new Error(error.message);
+    }
+
+    const jumlahTerhapus = deletedRows ? deletedRows.length : 0;
+    console.log('[DELETE ITEM] Baris yang benar-benar terhapus dari DB:', jumlahTerhapus);
+
+    // ── Verifikasi: jika 0 row terhapus → RLS memblokir atau ID tidak cocok
+    if (jumlahTerhapus === 0) {
+      console.warn('[DELETE ITEM] PERINGATAN: 0 row terhapus dari DB!');
+      console.warn('[DELETE ITEM] spin ID yang dicoba dihapus:', spinId);
+      console.warn('[DELETE ITEM] Kemungkinan penyebab:');
+      console.warn('  1. RLS policy DELETE belum dibuat di Supabase → tambahkan policy');
+      console.warn('  2. spin ID tidak ditemukan / bukan milik user ini');
+      throw new Error(
+        'Penghapusan gagal: data tidak terhapus dari database. ' +
+        'Kemungkinan RLS policy DELETE belum diaktifkan. Lihat console untuk detail.'
+      );
+    }
+
+    // ── Update local state hanya setelah DB berhasil hapus
     allHistory = allHistory.filter(s => String(s.id) !== String(spinId));
 
-    // Tutup modal
+    // ── Tutup modal
     closeDeleteItemModal();
 
-    // Animasi hilang & hapus card dari DOM tanpa refresh
+    // ── Animasi hilang & hapus card dari DOM secara realtime
     const card = document.getElementById('history-card-' + spinId);
     if (card) {
       card.style.transition = 'opacity 0.3s, transform 0.3s';
@@ -292,9 +350,11 @@ async function deleteHistoryItem() {
       }, 300);
     }
 
-    showToast('Riwayat berhasil dihapus.', 'success');
+    showToast('Riwayat berhasil dihapus permanen.', 'success');
+    console.log('[DELETE ITEM] Selesai. Item dihapus dari DB dan UI.');
 
   } catch (err) {
+    console.error('[DELETE ITEM] Gagal:', err.message);
     showToast('Gagal menghapus: ' + err.message, 'error');
   } finally {
     btn.disabled = false;

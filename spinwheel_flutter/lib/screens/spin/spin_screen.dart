@@ -22,19 +22,23 @@ class SpinScreen extends StatefulWidget {
 
 class _SpinScreenState extends State<SpinScreen>
     with SingleTickerProviderStateMixin {
-  // ── FIX UTAMA: AnimationController tanpa late Animation ─────
+
   late final AnimationController _ctrl;
 
-  // _spinAngle: akumulasi sudut roda (radian), di-update tiap frame
   double _spinAngle = 0.0;
-  // _lastCtrlValue: nilai controller di frame sebelumnya
   double _lastCtrlValue = 0.0;
-  // _totalRotation: total radian untuk spin ini
   double _totalRotation = 0.0;
 
   final _inputCtrl = TextEditingController();
-  bool _spinBtnPressed = false;
 
+  // Mode: false = Normal, true = Bobot
+  bool _weightedMode = false;
+  final _weightCtrl = TextEditingController(text: '1');
+
+  // Map nama opsi -> bobot (untuk mode Bobot)
+  final Map<String, int> _weights = {};
+
+  bool _spinBtnPressed = false;
   @override
   void initState() {
     super.initState();
@@ -63,11 +67,13 @@ class _SpinScreenState extends State<SpinScreen>
     });
   }
 
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    _inputCtrl.dispose();
-    super.dispose();
+@override
+void dispose() {
+  _ctrl.dispose();
+  _inputCtrl.dispose();
+  _weightCtrl.dispose();
+  super.dispose();
+
   }
 
   // ── Mulai spin ───────────────────────────────────────────────
@@ -79,9 +85,6 @@ class _SpinScreenState extends State<SpinScreen>
       return;
     }
 
-    // FIX AUDIO: panggil playSpin() dari UI (user gesture context)
-    // agar Flutter Web / browser mengizinkan audio playback.
-    // Tidak boleh dipanggil dari Provider karena bukan user gesture.
     if (prov.soundEnabled) {
       AudioService().playSpin();
     }
@@ -89,7 +92,6 @@ class _SpinScreenState extends State<SpinScreen>
     // 5–10 putaran penuh
     _totalRotation =
         (math.pi * 2) * (5 + math.Random().nextDouble() * 5);
-    // 4–5 detik
     _ctrl.duration = Duration(
         milliseconds: (4000 + math.Random().nextDouble() * 1000).toInt());
 
@@ -100,8 +102,19 @@ class _SpinScreenState extends State<SpinScreen>
     prov.winnerIndex = null;
     prov.notifyListeners();
 
-    // easeOutCubic: cepat di awal, lambat di akhir
     _ctrl.animateTo(1.0, curve: Curves.easeOutCubic);
+  }
+
+  // ── Pilih pemenang berdasarkan bobot ─────────────────────────
+  int _pickWeightedWinner(List<String> options) {
+    final totalWeight = options.fold<int>(
+        0, (sum, opt) => sum + (_weights[opt] ?? 1));
+    int rand = math.Random().nextInt(totalWeight);
+    for (int i = 0; i < options.length; i++) {
+      rand -= (_weights[options[i]] ?? 1);
+      if (rand < 0) return i;
+    }
+    return options.length - 1;
   }
 
   // ── Selesai spin — hitung pemenang ───────────────────────────
@@ -110,17 +123,33 @@ class _SpinScreenState extends State<SpinScreen>
     final options = prov.options;
     if (options.isEmpty) return;
 
-    final arc = (math.pi * 2) / options.length;
-    // Normalisasi sudut akhir
-    final normalized =
-        ((_spinAngle % (math.pi * 2)) + math.pi * 2) % (math.pi * 2);
-    // Pointer di kanan roda (angle = 0)
-    final pointerAngle = (math.pi * 2 - normalized) % (math.pi * 2);
-    final winnerIndex = (pointerAngle / arc).floor() % options.length;
+    int winnerIndex;
 
-    // Vibrate saat hasil keluar
+    if (_weightedMode) {
+      // Mode Bobot: pilih pemenang berdasarkan probabilitas bobot,
+      // lalu animasikan roda berhenti di sektor pemenang tersebut.
+      winnerIndex = _pickWeightedWinner(options);
+
+      // Hitung sudut tengah sektor pemenang agar roda berhenti di sana
+      final arc = (math.pi * 2) / options.length;
+      final targetAngle = arc * winnerIndex + arc / 2;
+      // Sesuaikan _spinAngle agar pointer menunjuk ke sektor pemenang
+      final currentNorm =
+          ((_spinAngle % (math.pi * 2)) + math.pi * 2) % (math.pi * 2);
+      final diff = (targetAngle - ((math.pi * 2) - currentNorm) % (math.pi * 2) + math.pi * 2) % (math.pi * 2);
+      setState(() {
+        _spinAngle += diff;
+      });
+    } else {
+      // Mode Normal: hitung dari posisi akhir roda
+      final arc = (math.pi * 2) / options.length;
+      final normalized =
+          ((_spinAngle % (math.pi * 2)) + math.pi * 2) % (math.pi * 2);
+      final pointerAngle = (math.pi * 2 - normalized) % (math.pi * 2);
+      winnerIndex = (pointerAngle / arc).floor() % options.length;
+    }
+
     HapticFeedback.heavyImpact();
-
     prov.onSpinComplete(winnerIndex);
     _showResultDialog(options[winnerIndex]);
   }
@@ -248,6 +277,11 @@ class _SpinScreenState extends State<SpinScreen>
         _showSnack('Pilihan sudah ada!');
       }
       return;
+    }
+    // Simpan bobot jika mode Bobot aktif
+    if (_weightedMode) {
+      final w = int.tryParse(_weightCtrl.text.trim()) ?? 1;
+      _weights[text] = w.clamp(1, 99);
     }
     _inputCtrl.clear();
     HapticFeedback.lightImpact();
@@ -440,6 +474,23 @@ class _SpinScreenState extends State<SpinScreen>
                       ),
                     ),
 
+                    // Mode toggle: Normal / Bobot
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(14, 0, 14, 6),
+                      child: Row(
+                        children: [
+                          _ModeToggle(
+                            value: _weightedMode,
+                            onChanged: (v) => setState(() {
+                              _weightedMode = v;
+                              // Reset semua bobot ke 1 saat ganti mode
+                              if (!v) _weights.clear();
+                            }),
+                          ),
+                        ],
+                      ),
+                    ),
+
                     // Input
                     Padding(
                       padding: const EdgeInsets.fromLTRB(14, 0, 14, 6),
@@ -466,6 +517,28 @@ class _SpinScreenState extends State<SpinScreen>
                               onSubmitted: (_) => _addOption(),
                             ),
                           ),
+                          // Input bobot — hanya tampil saat mode Bobot
+                          if (_weightedMode) ...[
+                            const SizedBox(width: 8),
+                            SizedBox(
+                              width: 62,
+                              child: TextField(
+                                controller: _weightCtrl,
+                                keyboardType: TextInputType.number,
+                                textAlign: TextAlign.center,
+                                decoration: InputDecoration(
+                                  labelText: 'Bobot',
+                                  isDense: true,
+                                  contentPadding:
+                                      const EdgeInsets.symmetric(
+                                          horizontal: 8, vertical: 12),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(11),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                           const SizedBox(width: 8),
                           SizedBox(
                             width: 50,
@@ -601,6 +674,28 @@ class _SpinScreenState extends State<SpinScreen>
                                           overflow: TextOverflow.ellipsis,
                                         ),
                                       ),
+                                      // Badge bobot
+                                      if (_weightedMode)
+                                        Container(
+                                          margin: const EdgeInsets.only(right: 6),
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 7, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: color.withOpacity(0.18),
+                                            borderRadius:
+                                                BorderRadius.circular(8),
+                                            border: Border.all(
+                                                color: color.withOpacity(0.4)),
+                                          ),
+                                          child: Text(
+                                            'x${_weights[opt] ?? 1}',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w700,
+                                              color: color,
+                                            ),
+                                          ),
+                                        ),
                                       GestureDetector(
                                         onTap: () =>
                                             prov.toggleFavorite(opt),
@@ -646,7 +741,73 @@ class _SpinScreenState extends State<SpinScreen>
   }
 }
 
-// ── Mini toolbar button ───────────────────────────────────────
+// ── Mode toggle: Normal / Bobot ──────────────────────────────
+class _ModeToggle extends StatelessWidget {
+  final bool value;
+  final ValueChanged<bool> onChanged;
+  const _ModeToggle({required this.value, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      height: 34,
+      decoration: BoxDecoration(
+        color: cs.surfaceVariant.withOpacity(0.45),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _Tab(
+            label: '⚖️  Normal',
+            active: !value,
+            onTap: () => onChanged(false),
+          ),
+          _Tab(
+            label: '🎲  Bobot',
+            active: value,
+            onTap: () => onChanged(true),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Tab extends StatelessWidget {
+  final String label;
+  final bool active;
+  final VoidCallback onTap;
+  const _Tab(
+      {required this.label, required this.active, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding:
+            const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        decoration: BoxDecoration(
+          color: active ? cs.primary : Colors.transparent,
+          borderRadius: BorderRadius.circular(9),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: active ? cs.onPrimary : cs.onSurface.withOpacity(0.55),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _ToolbarBtn extends StatelessWidget {
   final IconData icon;
   final String label;

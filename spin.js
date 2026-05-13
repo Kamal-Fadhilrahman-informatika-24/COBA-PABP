@@ -167,6 +167,9 @@ async function spinWheel() {
   document.getElementById('spinBtn').disabled = true;
   document.getElementById('spinBtn').textContent = '🌀 Berputar...';
 
+  // ── Spin SFX ──────────────────────────────────────────────
+  if (window.AudioController) AudioController.playSpinSound();
+
   // Animasi spin
   const totalRotation = (Math.PI * 2 * (5 + Math.random() * 5));   // 5–10 putaran
   const duration = 4000 + Math.random() * 1000;  // 4–5 detik
@@ -197,6 +200,8 @@ async function spinWheel() {
       const winner = options[winnerIndex];
 
       drawWheel(winnerIndex); // highlight pemenang
+      // ── Stop Spin SFX ──────────────────────────────────────────────
+      if (window.AudioController) AudioController.stopSpinSound();
       showResult(winner);
       saveSpinResult(winner);
 

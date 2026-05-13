@@ -39,16 +39,12 @@ Future<void> main() async {
     url: SupabaseConfig.url,
     anonKey: SupabaseConfig.anonKey,
     // authOptions mengontrol perilaku session
-    authOptions: const FlutterAuthClientOptions(
       authFlowType: AuthFlowType.implicit,
       // autoRefreshToken: true — refresh token otomatis sebelum expired
       // persistSession: true  — session disimpan di storage lokal
       // Keduanya adalah default di supabase_flutter v2, tapi eksplisit
       // lebih aman agar tidak berubah bila versi diupgrade.
-    ),
-    // debug: false di production
-    debug: false,
-  );
+    );
 
   await NotificationService().init();
 

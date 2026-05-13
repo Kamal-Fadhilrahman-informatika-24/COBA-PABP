@@ -3,7 +3,7 @@
 // Fitur: Cache file statis → app bisa dibuka offline
 // ============================================================
 
-const CACHE_NAME   = 'spindecide-v2';
+const CACHE_NAME   = 'spindecide-v3';
 const OFFLINE_URL  = 'login.html';
 
 // File yang di-cache saat install

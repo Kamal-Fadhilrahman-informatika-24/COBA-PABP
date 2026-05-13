@@ -145,6 +145,9 @@ async function doubleSpin() {
   document.getElementById('doubleSpinBtn').disabled = true;
   document.getElementById('doubleSpinBtn').textContent = '⚡ Berputar…';
 
+  // ── Spin SFX ──────────────────────────────────────────────
+  if (window.AudioController) AudioController.playSpinSound();
+
   // Aktifkan connector line
   document.getElementById('connectorLine').classList.add('active');
 
@@ -205,6 +208,9 @@ function finishDoubleSpin() {
   document.getElementById('connectorLine').classList.remove('active');
   DS.left.canvas.classList.remove('spinning-glow');
   DS.right.canvas.classList.remove('spinning-glow');
+
+  // ── Stop Spin SFX ──────────────────────────────────────────────
+  if (window.AudioController) AudioController.stopSpinSound();
 
   // Confetti
   launchDsConfetti();

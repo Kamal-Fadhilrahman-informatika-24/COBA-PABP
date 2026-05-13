@@ -35,6 +35,7 @@ function initMultiplayer(defaultName) {
 
   window.addEventListener('beforeunload', () => {
     if (MP.socket) MP.socket.disconnect();
+    if (window.AudioController) AudioController.stopBacksound();
   });
 }
 
@@ -197,6 +198,8 @@ function leaveRoom() {
   if (MP.socket && MP.roomCode) {
     MP.socket.emit('room:leave', { roomCode: MP.roomCode });
   }
+  // ── Hentikan backsound saat keluar room ──────────────────
+  if (window.AudioController) AudioController.stopBacksound();
   resetToLobby();
 }
 
@@ -399,6 +402,9 @@ function mpAnimateSpin(totalRotation, duration, startAngle) {
   document.getElementById('mpSpinBtn').disabled = true;
   document.getElementById('mpSpinBtn').textContent = '🌀 Berputar…';
 
+  // ── Spin SFX ──────────────────────────────────────────────
+  if (window.AudioController) AudioController.playSpinSound();
+
   const start = performance.now();
 
   function easeOut(t) { return 1 - Math.pow(1 - t, 4); }
@@ -422,6 +428,9 @@ function mpAnimateSpin(totalRotation, duration, startAngle) {
       const winner          = MP.options[winnerIndex];
 
       drawMpWheel(winnerIndex);
+
+      // ── Stop Spin SFX ──────────────────────────────────────────────
+      if (window.AudioController) AudioController.stopSpinSound();
 
       // Hanya host yang emit hasil
       if (MP.isHost) {
@@ -463,6 +472,8 @@ function showScreen(screenId) {
   if (screenId === 'screenRoom') {
     setTimeout(resizeMpCanvas, 100);
     window.addEventListener('resize', resizeMpCanvas);
+    // ── Mulai backsound saat masuk room ──────────────────────
+    if (window.AudioController) AudioController.startBacksound();
   }
 }
 

@@ -68,7 +68,7 @@ class SettingsScreen extends StatelessWidget {
           const SizedBox(height: 16),
 
           // ── Tampilan ─────────────────────────────────────────
-          _SectionHeader('Tampilan'),
+          const _SectionHeader('Tampilan'),
           Card(
             child: Column(
               children: [
@@ -87,7 +87,7 @@ class SettingsScreen extends StatelessWidget {
           const SizedBox(height: 12),
 
           // ── Audio ─────────────────────────────────────────────
-          _SectionHeader('Audio'),
+          const _SectionHeader('Audio'),
           Card(
             child: SwitchListTile(
               title: const Text('Sound Effect'),
@@ -101,7 +101,7 @@ class SettingsScreen extends StatelessWidget {
           const SizedBox(height: 12),
 
           // ── Favorit ───────────────────────────────────────────
-          _SectionHeader('Favorit Opsi'),
+          const _SectionHeader('Favorit Opsi'),
           Card(
             child: spinProv.favorites.isEmpty
                 ? const ListTile(
@@ -129,7 +129,7 @@ class SettingsScreen extends StatelessWidget {
           const SizedBox(height: 12),
 
           // ── Statistik ─────────────────────────────────────────
-          _SectionHeader('Statistik Kamu'),
+          const _SectionHeader('Statistik Kamu'),
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -149,19 +149,19 @@ class SettingsScreen extends StatelessWidget {
           const SizedBox(height: 12),
 
           // ── Tentang ───────────────────────────────────────────
-          _SectionHeader('Tentang'),
-          Card(
+          const _SectionHeader('Tentang'),
+          const Card(
             child: Column(
               children: [
                 ListTile(
-                  leading: const Icon(Icons.info_outline),
-                  title: const Text('SpinWheel App'),
-                  subtitle: const Text('Versi 1.0.0'),
+                  leading: Icon(Icons.info_outline),
+                  title: Text('SpinWheel App'),
+                  subtitle: Text('Versi 1.0.0'),
                 ),
                 ListTile(
-                  leading: const Icon(Icons.code),
-                  title: const Text('Tech Stack'),
-                  subtitle: const Text('Flutter + Supabase'),
+                  leading: Icon(Icons.code),
+                  title: Text('Tech Stack'),
+                  subtitle: Text('Flutter + Supabase'),
                 ),
               ],
             ),
